@@ -41,6 +41,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <limits.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
 
 #include "prov.h"
 #include <rdma/fi_var.h>
@@ -421,7 +423,7 @@ static int sock_ep_getinfo(const char *node, const char *service, uint64_t flags
 	struct sockaddr_in *src_addr = NULL, *dest_addr = NULL;
 	struct sockaddr_in sin;
 	int ret;
-
+	
 	memset(&ai, 0, sizeof(ai));
 	ai.ai_family = AF_INET;
 	ai.ai_socktype = SOCK_STREAM;
@@ -486,12 +488,56 @@ static int sock_ep_getinfo(const char *node, const char *service, uint64_t flags
 	return ret;
 }
 
+static void choose_interface(char **hostname, size_t len)
+{
+	char          buf[1024];
+	struct ifconf ifc;
+	struct ifreq *ifr;
+	int sck;
+	int           nInterfaces;
+	int           i;
+	int found = 0;
+	
+/* Get a socket handle. */
+	sck = socket(AF_INET, SOCK_DGRAM, 0);
+	if(sck < 0)
+	{
+		SOCK_LOG_ERROR("socket");
+		return;
+	}
+
+/* Query available interfaces. */
+	ifc.ifc_len = sizeof(buf);
+	ifc.ifc_buf = buf;
+	if(ioctl(sck, SIOCGIFCONF, &ifc) < 0)
+	{
+		SOCK_LOG_ERROR("ioctl(SIOCGIFCONF)");
+		return;
+	}
+
+/* Iterate through the list of interfaces. */
+	ifr         = ifc.ifc_req;
+	nInterfaces = ifc.ifc_len / sizeof(struct ifreq);
+	for(i = 0; i < nInterfaces; i++)
+	{
+		struct ifreq *item = &ifr[i];
+		if(strcmp(item->ifr_name,"ib0") == 0) {
+			*hostname = inet_ntoa(((struct sockaddr_in *)&item->ifr_addr)->sin_addr);
+			SOCK_LOG_INFO("Selected interface %s, host address %s\n",item->ifr_name, *hostname);
+			found = 1;
+			break;
+		}
+	}
+	if(!found)
+		gethostname(*hostname, sizeof *hostname);
+}
+
 static int sock_getinfo(uint32_t version, const char *node, const char *service,
 			uint64_t flags, struct fi_info *hints, struct fi_info **info)
 {
 	struct fi_info *cur, *tail;
 	enum fi_ep_type ep_type;
-	char hostname[HOST_NAME_MAX];
+	char *hostname;
 	int ret;
 
 	if (version != FI_VERSION(SOCK_MAJOR_VERSION, SOCK_MINOR_VERSION))
@@ -512,12 +558,14 @@ static int sock_getinfo(uint32_t version, const char *node, const char *service,
 
 	if (!node && !service && !hints) {
 		flags |= FI_SOURCE;
-		gethostname(hostname, sizeof hostname);
+		choose_interface(&hostname, sizeof hostname);
+		//gethostname(hostname, sizeof hostname);
 		node = hostname;
 	}
 
 	if (!node && !service && !(flags & FI_SOURCE)) {
-		gethostname(hostname, sizeof hostname);
+		//gethostname(hostname, sizeof hostname);
+		choose_interface(&hostname, sizeof hostname);
 		node = hostname;
 	}
 
