@@ -523,7 +523,7 @@ static void choose_interface(char **hostname, size_t len)
 		struct ifreq *item = &ifr[i];
 		if(strcmp(item->ifr_name,"ib0") == 0) {
 			*hostname = inet_ntoa(((struct sockaddr_in *)&item->ifr_addr)->sin_addr);
-			SOCK_LOG_INFO("Selected interface %s, host address %s\n",item->ifr_name, *hostname);
+			SOCK_LOG_DBG("Selected interface %s, host address %s\n",item->ifr_name, *hostname);
 			found = 1;
 			break;
 		}

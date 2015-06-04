@@ -214,7 +214,7 @@ ssize_t sock_ep_sendmsg(struct fid_ep *ep, const struct fi_msg *msg,
 		conn = sock_av_lookup_addr(sock_ep, tx_ctx->av, msg->addr);
 		if (!conn) {
 			SOCK_LOG_ERROR("Address lookup failed\n");
-			return -errno;
+			return -FI_EAGAIN;
 		}
 	}
 	if (!conn)
@@ -559,7 +559,7 @@ ssize_t sock_ep_tsendmsg(struct fid_ep *ep,
 		conn = sock_av_lookup_addr(sock_ep, tx_ctx->av, msg->addr);
 		if (!conn) {
 			SOCK_LOG_ERROR("Address lookup failed\n");
-			return -errno;
+			return -FI_EAGAIN;
 		}
 	}
 	if (!conn)
