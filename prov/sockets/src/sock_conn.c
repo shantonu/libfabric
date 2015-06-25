@@ -175,6 +175,13 @@ void sock_set_sockopts(int sock)
 	sock_set_sockopt_reuseaddr(sock);
 	if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof optval))
 		SOCK_LOG_ERROR("setsockopt nodelay failed\n");
+	
+	optval = 128*1024;
+    	if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &optval, sizeof optval))
+                SOCK_LOG_ERROR("setsockopt recvbuf failed\n");
+    	
+	if (setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &optval, sizeof optval))
+                SOCK_LOG_ERROR("setsockopt sndbuf failed\n");
 
 	fd_set_nonblock(sock);
 }
