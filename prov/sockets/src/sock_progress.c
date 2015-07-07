@@ -2416,10 +2416,12 @@ static void sock_pe_poll(struct sock_pe *pe)
 	struct sock_conn *conn;
 
 	FD_ZERO(&rfds);
-	if (dlistfd_empty(&pe->tx_list) && dlistfd_empty(&pe->rx_list))
-		goto do_wait;
-
 	fastlock_acquire(&pe->list_lock);
+	if (dlistfd_empty(&pe->tx_list) && dlistfd_empty(&pe->rx_list)) {
+		fastlock_release(&pe->list_lock);
+		goto do_wait;
+	}
+
 	if (!dlistfd_empty(&pe->tx_list)) {
 		for (entry = pe->tx_list.list.next;
 		     entry != &pe->tx_list.list; entry = entry->next) {
@@ -2650,6 +2652,7 @@ err2:
 	close(pe->signal_fds[1]);
 err1:
 	fastlock_destroy(&pe->lock);
+	fastlock_destroy(&pe->list_lock);
 	dlistfd_head_free(&pe->tx_list);
 	dlistfd_head_free(&pe->rx_list);
 	free(pe);
