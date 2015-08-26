@@ -85,7 +85,7 @@
 #define SOCK_PE_WAITTIME (10)
 
 #define SOCK_EQ_DEF_SZ (1<<8)
-#define SOCK_CQ_DEF_SZ (1<<8)
+#define SOCK_CQ_DEF_SZ (1<<11)
 #define SOCK_AV_DEF_SZ (1<<8)
 
 #define SOCK_CQ_DATA_SIZE (sizeof(uint64_t))
