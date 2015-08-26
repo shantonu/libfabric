@@ -262,7 +262,7 @@ retry:
 						optval, strerror(optval));
 				goto err;
 			}
-		} else if (errno == ETIMEDOUT && do_retry) {
+		} else if ((errno == ETIMEDOUT || errno == EADDRNOTAVAIL) && do_retry) {
 			do_retry--;
 			SOCK_LOG_ERROR("Connect timed out, retrying - %s\n",
 				       strerror(errno));
