@@ -166,9 +166,6 @@ static int sock_dom_close(struct fid *fid)
 		return -FI_EBUSY;
 
 	sock_pe_finalize(dom->pe);
-	if (dom->r_cmap.size)
-		sock_conn_map_destroy(&dom->r_cmap);
-	fastlock_destroy(&dom->r_cmap.lock);
 	fastlock_destroy(&dom->lock);
 	sock_dom_remove_from_list(dom);
 	free(dom);
@@ -492,12 +489,6 @@ int sock_domain(struct fid_fabric *fabric, struct fi_info *info,
 		SOCK_LOG_ERROR("Failed to init PE\n");
 		goto err;
 	}
-
-	if (sock_conn_map_init(&sock_domain->r_cmap, sock_cm_def_map_sz))
-		goto err;
-
-	sock_domain->r_cmap.domain = sock_domain;
-	fastlock_init(&sock_domain->r_cmap.lock);
 
 	sock_domain->fab = fab;
 	*dom = &sock_domain->dom_fid;
