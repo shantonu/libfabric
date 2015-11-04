@@ -507,4 +507,3 @@ struct fi_ops_rma sock_ep_rma = {
 	.injectdata = sock_ep_rma_injectdata,
 	.writedata = sock_ep_rma_writedata,
 };
-

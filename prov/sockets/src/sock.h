@@ -86,6 +86,7 @@
 #define SOCK_CQ_DEF_SZ (1<<8)
 #define SOCK_AV_DEF_SZ (1<<8)
 #define SOCK_CMAP_DEF_SZ (1<<10)
+#define SOCK_COMM_BUF_SZ (1<<10)
 
 #define SOCK_CQ_DATA_SIZE (sizeof(uint64_t))
 #define SOCK_TAG_SIZE (sizeof(uint64_t))
@@ -768,6 +769,9 @@ struct sock_pe_entry {
 	uint64_t data;
 	uint64_t tag;
 	uint64_t buf;
+	char *commbuf;
+	uint64_t used;
+	uint64_t read_start;
 
 	uint8_t type;
 	uint8_t is_complete;
