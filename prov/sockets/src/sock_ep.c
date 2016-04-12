@@ -39,6 +39,11 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
+#if HAVE_GETIFADDRS
+#include <net/if.h>
+#include <ifaddrs.h>
+#endif
+
 #include "sock.h"
 #include "sock_util.h"
 
@@ -1294,7 +1299,29 @@ int sock_srx_ctx(struct fid_domain *domain,
 	return 0;
 }
 
-static void sock_set_fabric_attr(const struct fi_fabric_attr *hint_attr,
+char *sock_get_fabric_name(struct sockaddr_in *src_addr)
+{
+	int ret;
+        struct ifaddrs *ifaddrs, *ifa;
+	char *fabric_name = NULL;
+#if HAVE_GETIFADDRS
+	ret = getifaddrs(&ifaddrs);
+	if (!ret) {
+		for (ifa = ifaddrs; ifa != NULL; ifa = ifa->ifa_next) {
+			if (ifa->ifa_addr == NULL || !(ifa->ifa_flags & IFF_UP) || (ifa->ifa_addr->sa_family != AF_INET))
+				continue;
+			if (sock_compare_addr((struct sockaddr_in *)ifa->ifa_addr, src_addr)) {
+				fabric_name = strdup(ifa->ifa_name);
+				return fabric_name;
+			}
+                }
+                freeifaddrs(ifaddrs);
+        }
+#endif
+	return fabric_name;
+}
+
+static void sock_set_fabric_attr(void *src_addr, const struct fi_fabric_attr *hint_attr,
 				 struct fi_fabric_attr *attr)
 {
 	struct sock_fabric *fabric;
@@ -1306,7 +1333,12 @@ static void sock_set_fabric_attr(const struct fi_fabric_attr *hint_attr,
 		fabric = sock_fab_list_head();
 		attr->fabric = fabric ? &fabric->fab_fid : NULL;
 	}
-	attr->name = strdup(sock_fab_name);
+
+	/* reverse lookup interface name from node and assign it as fabric name */
+	attr->name = sock_get_fabric_name(src_addr);
+	if (!attr->name)
+		attr->name = strdup(sock_fab_name);
+
 	attr->prov_name = NULL;
 }
 
@@ -1407,10 +1439,10 @@ struct fi_info *sock_fi_info(enum fi_ep_type ep_type, struct fi_info *hints,
 			info->handle = hints->handle;
 
 		sock_set_domain_attr(hints->domain_attr, info->domain_attr);
-		sock_set_fabric_attr(hints->fabric_attr, info->fabric_attr);
+		sock_set_fabric_attr(src_addr, hints->fabric_attr, info->fabric_attr);
 	} else {
 		sock_set_domain_attr(NULL, info->domain_attr);
-		sock_set_fabric_attr(NULL, info->fabric_attr);
+		sock_set_fabric_attr(src_addr, NULL, info->fabric_attr);
 	}
 
 	info->ep_attr->type = ep_type;

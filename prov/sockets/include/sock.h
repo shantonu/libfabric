@@ -911,6 +911,11 @@ struct sock_conn_req_handle {
 	struct sock_conn_req *req;
 };
 
+struct sock_host_list_entry {
+	char hostname[HOST_NAME_MAX];
+	struct slist_entry entry;
+};
+
 union sock_tx_op {
 	struct sock_msg {
 		struct sock_op_send op;
