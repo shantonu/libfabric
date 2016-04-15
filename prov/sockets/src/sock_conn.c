@@ -91,7 +91,7 @@ err:
 
 int sock_conn_map_init(struct sock_ep *ep, int init_size)
 {
-	struct sock_conn_map *map = &ep->cmap;
+	struct sock_conn_map *map = ep->cmap;
 	map->table = calloc(init_size, sizeof(*map->table));
 	if (!map->table)
 		return -FI_ENOMEM;
@@ -143,7 +143,7 @@ static struct sock_conn *sock_conn_map_insert(struct sock_ep *ep,
 				int addr_published)
 {
 	int index;
-	struct sock_conn_map *map = &ep->cmap;
+	struct sock_conn_map *map = ep->cmap;
 
 	if (map->size == map->used) {
 		if (sock_conn_map_increase(map, map->size * 2))
@@ -158,11 +158,11 @@ static struct sock_conn *sock_conn_map_insert(struct sock_ep *ep,
 	map->table[index].ep = ep;
 	sock_set_sockopts(conn_fd);
 
-	fastlock_acquire(&ep->lock);
-	dlist_insert_tail(&map->table[index].ep_entry, &ep->conn_list);
-	fastlock_release(&ep->lock);
+	fastlock_acquire(ep->lock);
+	dlist_insert_tail(&map->table[index].ep_entry, ep->conn_list);
+	fastlock_release(ep->lock);
 
-	if (idm_set(&ep->conn_idm, conn_fd, &map->table[index]) < 0)
+	if (idm_set(ep->conn_idm, conn_fd, &map->table[index]) < 0)
                 SOCK_LOG_ERROR("idm_set failed\n");
 
 	if (sock_epoll_add(&map->epoll_set, conn_fd))
@@ -225,8 +225,8 @@ static void *_sock_conn_listen(void *arg)
 	struct pollfd poll_fds[2];
 
 	struct sock_ep *ep = (struct sock_ep *)arg;
-	struct sock_conn_listener *listener = &ep->listener;
-	struct sock_conn_map *map = &ep->cmap;
+	struct sock_conn_listener *listener = ep->listener;
+	struct sock_conn_map *map = ep->cmap;
 
 	poll_fds[0].fd = listener->sock;
 	poll_fds[1].fd = listener->signal_fds[1];
@@ -278,7 +278,7 @@ int sock_conn_listen(struct sock_ep *ep)
 	int listen_fd = 0, ret;
 	socklen_t addr_size;
 	struct sockaddr_in addr;
-	struct sock_conn_listener *listener = &ep->listener;
+	struct sock_conn_listener *listener = ep->listener;
 	struct sock_domain *domain = ep->domain;
 	char service[NI_MAXSERV] = {0};
 	char *port;
@@ -394,9 +394,9 @@ struct sock_conn *sock_ep_connect(struct sock_ep *ep, fi_addr_t index)
 	}
 
 do_connect:
-	fastlock_acquire(&ep->cmap.lock);
+	fastlock_acquire(&ep->cmap->lock);
 	conn = sock_ep_lookup_conn(ep, index, addr);
-	fastlock_release(&ep->cmap.lock);
+	fastlock_release(&ep->cmap->lock);
 
 	if (conn != SOCK_CM_CONN_IN_PROGRESS)
 		return conn;
@@ -478,19 +478,19 @@ retry:
         goto do_connect;
 
 out:
-	fastlock_acquire(&ep->cmap.lock);
+	fastlock_acquire(&ep->cmap->lock);
 	new_conn = sock_conn_map_insert(ep, addr, conn_fd, 0);
 	if (!new_conn) {
-		fastlock_release(&ep->cmap.lock);
+		fastlock_release(&ep->cmap->lock);
 		goto err;
 	}
 	new_conn->av_index = (ep->ep_type == FI_EP_MSG) ? FI_ADDR_NOTAVAIL : (fi_addr_t) idx;
-	conn = idm_lookup(&ep->av_idm, index);
+	conn = idm_lookup(ep->av_idm, index);
 	if (conn == SOCK_CM_CONN_IN_PROGRESS) {
-		idm_set(&ep->av_idm, index, new_conn);
+		idm_set(ep->av_idm, index, new_conn);
 		conn = new_conn;
 	}
-	fastlock_release(&ep->cmap.lock);
+	fastlock_release(&ep->cmap->lock);
 	return conn;
 
 err:

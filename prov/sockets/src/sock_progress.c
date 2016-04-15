@@ -1641,7 +1641,7 @@ static int sock_pe_process_rx_conn_msg(struct sock_pe *pe,
 		ntohs(((struct sockaddr_in *)pe_entry->comm_addr)->sin_port));
 
 	ep = pe_entry->conn->ep;
-	map = &ep->cmap;
+	map = ep->cmap;
 	addr = (struct sockaddr_in *) pe_entry->comm_addr;
 	pe_entry->conn->addr = *addr;
 
@@ -1650,7 +1650,7 @@ static int sock_pe_process_rx_conn_msg(struct sock_pe *pe,
 		fastlock_acquire(&map->lock);
 		conn = sock_ep_lookup_conn(ep, index, addr);
 		if (conn == NULL || conn == SOCK_CM_CONN_IN_PROGRESS)
-			idm_set(&ep->av_idm, index, pe_entry->conn);
+			idm_set(ep->av_idm, index, pe_entry->conn);
 		fastlock_release(&map->lock);
 	}
 	pe_entry->conn->av_index = (ep->ep_type == FI_EP_MSG || index == -1) ?
@@ -2439,7 +2439,7 @@ static int sock_pe_progress_rx_ep(struct sock_pe *pe, struct sock_ep *ep,
 	struct sock_conn *conn;
 	struct sock_conn_map *map;
 
-	map = &ep->cmap;
+	map = ep->cmap;
 
         if (!map->used)
                 return 0;
@@ -2454,7 +2454,7 @@ static int sock_pe_progress_rx_ep(struct sock_pe *pe, struct sock_ep *ep,
 	fastlock_acquire(&map->lock);
 	for (i = 0; i < num_fds; i++) {
 		fd = sock_epoll_get_fd_at_index(&map->epoll_set, i);
-		conn = idm_lookup(&ep->conn_idm, fd);
+		conn = idm_lookup(ep->conn_idm, fd);
 		if (!conn)
 			SOCK_LOG_ERROR("idm_lookup failed\n");
 

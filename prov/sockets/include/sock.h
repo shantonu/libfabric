@@ -499,13 +499,14 @@ struct sock_ep {
 	struct fid_ep ep;
 	size_t fclass;
 	uint64_t op_flags;
+	int is_alias;
 
 	int tx_shared;
 	int rx_shared;
 	size_t buffered_len;
 	size_t min_multi_recv;
 
-	atomic_t ref;
+	atomic_t *ref;
 	struct sock_comp comp;
 
 	struct sock_eq *eq;
@@ -517,8 +518,8 @@ struct sock_ep {
 
 	struct sock_rx_ctx **rx_array;
 	struct sock_tx_ctx **tx_array;
-	atomic_t num_rx_ctx;
-	atomic_t num_tx_ctx;
+	atomic_t *num_rx_ctx;
+	atomic_t *num_tx_ctx;
 
 	struct dlist_entry rx_ctx_entry;
 	struct dlist_entry tx_ctx_entry;
@@ -536,14 +537,14 @@ struct sock_ep {
 	uint64_t peer_fid;
 	uint16_t key;
 	int is_disabled;
-	struct sock_cm_entry cm;
-	struct sock_conn_listener listener;
-	struct dlist_entry conn_list;
-	fastlock_t lock;
+	struct sock_cm_entry *cm;
+	struct sock_conn_listener *listener;
+	struct dlist_entry *conn_list;
+	fastlock_t *lock;
 
-	struct index_map conn_idm;
-	struct index_map av_idm;
-	struct sock_conn_map cmap;
+	struct index_map *conn_idm;
+	struct index_map *av_idm;
+	struct sock_conn_map *cmap;
 };
 
 struct sock_pep {
