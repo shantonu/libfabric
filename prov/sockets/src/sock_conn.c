@@ -65,7 +65,7 @@ ssize_t sock_conn_send_src_addr(struct sock_ep_attr *ep_attr, struct sock_tx_ctx
 
 	memset(&tx_op, 0, sizeof(struct sock_op));
 	tx_op.op = SOCK_OP_CONN_MSG;
-	SOCK_LOG_DBG("New conn msg on TX: %p using conn: %p\n", tx_ctx, conn);
+	SOCK_LOG_ERROR("New conn msg on TX: %p using conn: %p\n", tx_ctx, conn);
 
 	total_len = 0;
 	tx_op.src_iov_len = sizeof(struct sockaddr_in);
@@ -170,6 +170,7 @@ static struct sock_conn *sock_conn_map_insert(struct sock_ep_attr *ep_attr,
 
 	map->table[index].address_published = addr_published;
 	sock_pe_poll_add(ep_attr->domain->pe, conn_fd);
+        SOCK_LOG_ERROR("map->used %d\n", map->used);
 	return &map->table[index];
 }
 
@@ -232,6 +233,7 @@ static void *_sock_conn_listen(void *arg)
 	poll_fds[1].fd = listener->signal_fds[1];
 	poll_fds[0].events = poll_fds[1].events = POLLIN;
 	listener->is_ready = 1;
+	SOCK_LOG_ERROR("Waiting at poll\n");
 
 	while (listener->do_listen) {
 		if (poll(poll_fds, 2, -1) > 0) {
@@ -250,16 +252,17 @@ static void *_sock_conn_listen(void *arg)
 		addr_size = sizeof(remote);
 		conn_fd = accept(listener->sock, (struct sockaddr *) &remote,
 					&addr_size);
-		SOCK_LOG_DBG("CONN: accepted conn-req: %d\n", conn_fd);
+		SOCK_LOG_ERROR("CONN: accepted conn-req: %d\n", conn_fd);
 		if (conn_fd < 0) {
 			SOCK_LOG_ERROR("failed to accept: %d\n", errno);
 			goto err;
 		}
 
-		SOCK_LOG_DBG("ACCEPT: %s, %d\n", inet_ntoa(remote.sin_addr),
+		SOCK_LOG_ERROR("ACCEPT: %s, %d\n", inet_ntoa(remote.sin_addr),
 				ntohs(remote.sin_port));
 
 		fastlock_acquire(&map->lock);
+		SOCK_LOG_ERROR("Inserting to conn_map map->used %d\n", ep_attr->cmap.used);
 		sock_conn_map_insert(ep_attr, &remote, conn_fd, 1);
 		fastlock_release(&map->lock);
 		sock_pe_signal(ep_attr->domain->pe);
@@ -309,7 +312,7 @@ int sock_conn_listen(struct sock_ep_attr *ep_attr)
 		return -FI_EINVAL;
 	}
 
-	SOCK_LOG_DBG("Binding listener thread to port: %s\n", listener->service);
+	SOCK_LOG_ERROR("Binding listener thread to port: %s\n", listener->service);
 	for (p = s_res; p; p = p->ai_next) {
 		listen_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
 		if (listen_fd >= 0) {
@@ -416,9 +419,9 @@ do_connect:
                 return NULL;
 	}
 
-	SOCK_LOG_DBG("Connecting to: %s:%d\n", inet_ntoa(addr->sin_addr),
+	SOCK_LOG_ERROR("Connecting to: %s:%d\n", inet_ntoa(addr->sin_addr),
 			ntohs(addr->sin_port));
-	SOCK_LOG_DBG("Connecting using address:%s\n",
+	SOCK_LOG_ERROR("Connecting using address:%s\n",
 			inet_ntoa(ep_attr->src_addr->sin_addr));
 
 	ret = connect(conn_fd, (struct sockaddr *) addr, sizeof *addr);
@@ -479,6 +482,7 @@ retry:
 
 out:
 	fastlock_acquire(&ep_attr->cmap.lock);
+	SOCK_LOG_ERROR("Inserting to conn_map map->used %d\n", ep_attr->cmap.used);
 	new_conn = sock_conn_map_insert(ep_attr, addr, conn_fd, 0);
 	if (!new_conn) {
 		fastlock_release(&ep_attr->cmap.lock);

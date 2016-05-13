@@ -457,7 +457,7 @@ ssize_t sock_ep_trecvmsg(struct fid_ep *ep,
 	}
 
 	fastlock_acquire(&rx_ctx->lock);
-	SOCK_LOG_DBG("New rx_entry: %p (ctx: %p)\n", rx_entry, rx_ctx);
+	SOCK_LOG_ERROR("New rx_entry: %p (ctx: %p)\n", rx_entry, rx_ctx);
 	dlist_insert_tail(&rx_entry->entry, &rx_ctx->rx_entry_list);
 	fastlock_release(&rx_ctx->lock);
 	return 0;
@@ -543,6 +543,7 @@ ssize_t sock_ep_tsendmsg(struct fid_ep *ep,
 	if (sock_drop_packet(ep_attr))
 		return 0;
 
+	SOCK_LOG_ERROR("tsendmsg is calling sock_ep_get_conn\n");
 	ret = sock_ep_get_conn(ep_attr, tx_ctx, msg->addr, &conn);
 	if (ret)
 		return ret;
@@ -607,6 +608,7 @@ ssize_t sock_ep_tsendmsg(struct fid_ep *ep,
 	}
 
 	sock_tx_ctx_commit(tx_ctx);
+	SOCK_LOG_ERROR("tsendmsg complete!\n");
 	return 0;
 
 err:

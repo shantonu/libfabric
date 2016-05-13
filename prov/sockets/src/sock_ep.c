@@ -633,6 +633,7 @@ static int sock_ep_close(struct fid *fid)
 	default:
 		return -FI_EINVAL;
 	}
+	SOCK_LOG_ERROR("Closing EP!\n");
 
 	if (sock_ep->is_alias) {
 		atomic_dec(&sock_ep->attr->ref);
@@ -657,6 +658,7 @@ static int sock_ep_close(struct fid *fid)
 		if (sock_ep->attr->av)
 			atomic_dec(&sock_ep->attr->av->ref);
 	}
+	SOCK_LOG_ERROR("Closing CM thread!\n");
 
 	pthread_mutex_lock(&sock_ep->attr->domain->pe->list_lock);
 	if (sock_ep->attr->tx_shared) {
@@ -711,6 +713,7 @@ static int sock_ep_close(struct fid *fid)
 	fastlock_destroy(&sock_ep->attr->lock);
 	free(sock_ep->attr);
 	free(sock_ep);
+	SOCK_LOG_ERROR("Successful EP-close!\n");
 	return 0;
 }
 
@@ -1490,6 +1493,7 @@ int sock_alloc_endpoint(struct fid_domain *domain, struct fi_info *info,
 			return -FI_EINVAL;
 		}
 	}
+	SOCK_LOG_ERROR("Creating EP!\n");
 
 	sock_dom = container_of(domain, struct sock_domain, dom_fid);
 	sock_ep = (struct sock_ep *) calloc(1, sizeof(*sock_ep));
@@ -1673,6 +1677,7 @@ int sock_alloc_endpoint(struct fid_domain *domain, struct fi_info *info,
 	}
 
 	atomic_inc(&sock_dom->ref);
+	SOCK_LOG_ERROR("Successful EP creation!\n");
 	return 0;
 
 err2:
@@ -1724,6 +1729,9 @@ int sock_ep_get_conn(struct sock_ep_attr *attr, struct sock_tx_ctx *tx_ctx,
 	if (!conn) {
 		conn = SOCK_CM_CONN_IN_PROGRESS;
 		idm_set(&attr->av_idm, av_index, conn);
+		SOCK_LOG_ERROR("Looked up conn: CONN_IN_PROGRESS, av_index %d cmap->used%d\n", av_index, attr->cmap.used);
+	} else {
+		SOCK_LOG_ERROR("Looked up conn %p av_index %d cmap->used %d\n", conn, av_index, attr->cmap.used);
 	}
 	fastlock_release(&attr->cmap.lock);
 
@@ -1739,5 +1747,6 @@ int sock_ep_get_conn(struct sock_ep_attr *attr, struct sock_tx_ctx *tx_ctx,
 	}
 
 	*pconn = conn;
+	SOCK_LOG_ERROR("addr_published %d\n", conn->address_published);
 	return conn->address_published ? 0 : sock_conn_send_src_addr(attr, tx_ctx, conn);
 }

@@ -183,7 +183,7 @@ static void sock_pe_release_entry(struct sock_pe *pe,
 
 	dlist_remove(&pe_entry->entry);
 	dlist_insert_head(&pe_entry->entry, &pe->free_list);
-	SOCK_LOG_DBG("progress entry %p released\n", pe_entry);
+	SOCK_LOG_ERROR("progress entry %p released\n", pe_entry);
 }
 
 static struct sock_pe_entry *sock_pe_acquire_entry(struct sock_pe *pe)
@@ -207,7 +207,7 @@ static struct sock_pe_entry *sock_pe_acquire_entry(struct sock_pe *pe)
 		pe_entry = container_of(entry, struct sock_pe_entry, entry);
 		dlist_remove(&pe_entry->entry);
 		dlist_insert_tail(&pe_entry->entry, &pe->busy_list);
-		SOCK_LOG_DBG("progress entry %p acquired : %lu\n", pe_entry,
+		SOCK_LOG_ERROR("progress entry %p acquired : %lu\n", pe_entry,
 			     PE_INDEX(pe, pe_entry));
 	}
 	return pe_entry;
@@ -1497,10 +1497,10 @@ static int sock_pe_process_rx_send(struct sock_pe *pe,
 
 		rx_entry = sock_rx_get_entry(rx_ctx, pe_entry->addr, pe_entry->tag,
 					     pe_entry->msg_hdr.op_type == SOCK_OP_TSEND ? 1 : 0);
-		SOCK_LOG_DBG("Consuming posted entry: %p\n", rx_entry);
+		SOCK_LOG_ERROR("Consuming posted entry: %p\n", rx_entry);
 
 		if (!rx_entry) {
-			SOCK_LOG_DBG("%p: No matching recv, buffering recv (len = %llu)\n",
+			SOCK_LOG_ERROR("%p: No matching recv, buffering recv (len = %llu)\n",
 				      pe_entry, (long long unsigned int)data_len);
 
 			rx_entry = sock_rx_new_buffered_entry(rx_ctx, data_len);
@@ -1635,10 +1635,10 @@ static int sock_pe_process_rx_conn_msg(struct sock_pe *pe,
 		return 0;
 	}
 
-	SOCK_LOG_DBG("got conn msg from %s:%d\n",
+	SOCK_LOG_ERROR("got conn msg from %s:%d\n",
 		inet_ntoa(((struct sockaddr_in *)&pe_entry->conn->addr)->sin_addr),
 		ntohs(((struct sockaddr_in *)&pe_entry->conn->addr)->sin_port));
-	SOCK_LOG_DBG("on behalf of %s:%d\n",
+	SOCK_LOG_ERROR("on behalf of %s:%d\n",
 		inet_ntoa(((struct sockaddr_in *)pe_entry->comm_addr)->sin_addr),
 		ntohs(((struct sockaddr_in *)pe_entry->comm_addr)->sin_port));
 
@@ -2036,13 +2036,14 @@ static int sock_pe_progress_tx_send(struct sock_pe *pe,
 	if (pe_entry->done_len == pe_entry->total_len) {
 		pe_entry->pe.tx.send_done = 1;
 		pe_entry->conn->tx_pe_entry = NULL;
-		SOCK_LOG_DBG("Send complete\n");
+		SOCK_LOG_ERROR("Send complete\n");
 
 		if (pe_entry->flags & FI_INJECT_COMPLETE) {
 			sock_pe_report_tx_completion(pe_entry);
 			pe_entry->is_complete = 1;
 		}
 	}
+	SOCK_LOG_ERROR("Process send\n");
 
 	return 0;
 }
@@ -2082,6 +2083,7 @@ static int sock_pe_progress_tx_entry(struct sock_pe *pe,
 {
 	int ret;
 	struct sock_conn *conn = pe_entry->conn;
+	SOCK_LOG_ERROR("Progress tx_entry\n");
 
 	if (!pe_entry->conn || pe_entry->pe.tx.send_done)
 		return 0;
@@ -2201,10 +2203,10 @@ static void sock_pe_new_rx_entry(struct sock_pe *pe, struct sock_rx_ctx *rx_ctx,
 	else
 		pe_entry->comp = &rx_ctx->comp;
 
-	SOCK_LOG_DBG("New RX on PE entry %p (%ld)\n",
+	SOCK_LOG_ERROR("New RX on PE entry %p (%ld)\n",
 		      pe_entry, PE_INDEX(pe, pe_entry));
 
-	SOCK_LOG_DBG("Inserting rx_entry to PE entry %p, conn: %p\n",
+	SOCK_LOG_ERROR("Inserting rx_entry to PE entry %p, conn: %p\n",
 		      pe_entry, pe_entry->conn);
 
 	dlist_insert_tail(&pe_entry->ctx_entry, &rx_ctx->pe_entry_list);
@@ -2235,7 +2237,7 @@ static int sock_pe_new_tx_entry(struct sock_pe *pe, struct sock_tx_ctx *tx_ctx)
 	msg_hdr->msg_len = sizeof(*msg_hdr);
 
 	msg_hdr->pe_entry_id = PE_INDEX(pe, pe_entry);
-	SOCK_LOG_DBG("New TX on PE entry %p (%d)\n",
+	SOCK_LOG_ERROR("New TX on PE entry %p (%d)\n",
 		      pe_entry, msg_hdr->pe_entry_id);
 
 	sock_tx_ctx_read_op_send(tx_ctx, &pe_entry->pe.tx.tx_op,
@@ -2356,7 +2358,7 @@ static int sock_pe_new_tx_entry(struct sock_pe *pe, struct sock_tx_ctx *tx_ctx)
 		return -FI_EINVAL;
 	}
 
-	SOCK_LOG_DBG("Inserting TX-entry to PE entry %p, conn: %p\n",
+	SOCK_LOG_ERROR("Inserting TX-entry to PE entry %p, conn: %p\n",
 		      pe_entry, pe_entry->conn);
 
 	/* prepare message header */
@@ -2375,6 +2377,7 @@ static int sock_pe_new_tx_entry(struct sock_pe *pe, struct sock_tx_ctx *tx_ctx)
 	pe_entry->total_len = msg_hdr->msg_len;
 	msg_hdr->msg_len = htonll(msg_hdr->msg_len);
 	msg_hdr->pe_entry_id = htons(msg_hdr->pe_entry_id);
+	SOCK_LOG_ERROR("Progress tx_entry\n");
 	return sock_pe_progress_tx_entry(pe, tx_ctx, pe_entry);
 }
 
@@ -2443,8 +2446,9 @@ static int sock_pe_progress_rx_ep(struct sock_pe *pe, struct sock_ep_attr *ep_at
 
 	map = &ep_attr->cmap;
 
-        if (!map->used)
+        if (!map->used) {
                 return 0;
+	}
 
         num_fds = sock_epoll_wait(&map->epoll_set, 0);
         if (num_fds < 0 || num_fds == 0) {
@@ -2537,6 +2541,7 @@ void sock_pe_progress_rx_ctrl_ctx(struct sock_pe *pe, struct sock_rx_ctx *rx_ctx
 	     entry != &rx_ctx->pe_entry_list;) {
 		pe_entry = container_of(entry, struct sock_pe_entry, ctx_entry);
 		entry = entry->next;
+		SOCK_LOG_ERROR("progress_rx_pe_entry\n");
 		sock_pe_progress_rx_pe_entry(pe, pe_entry, rx_ctx);
 	}
 }
